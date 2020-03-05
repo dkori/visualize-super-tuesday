@@ -233,7 +233,8 @@ leaflet()%>%
     pal=pal,
     values=~biden_margin,
     opacity=1,
-    title="Biden delegate\nmargin")
+    title="Biden delegate<br>margin",
+    bins=5)
 
 ```
 
