@@ -107,6 +107,7 @@ pledged_per_state<-delegate_table2%>%
 
 ```
 [github repo](https://github.com/dkori/visualize-super-tuesday)
+
 ## What actually happened on Super Tuesday? 
 
 I've noticed that the press coverage of Super Tuesday of the 2020 Democratic primary seemed to focus almost exclusively on who "won" specific states. This is a familiar format of election coverage for most of us as its how we generally hear national results for general elections. 
@@ -160,7 +161,7 @@ delegate_frame<-data.frame(Buttigieg=sum(win_counter$Buttigieg,na.rm=TRUE),
 #plot results
 rbind(delegate_frame,win_frame)%>%
   ggplot(aes(x=x,y=value,fill=key))+
-  geom_bar(stat="identity",position="fill",width=.5)+
+  geom_bar(stat="identity",position="fill",width=.4)+
   scale_y_continuous(label=percent)+
   theme(legend.position="bottom")+
   labs(x="",y="percent",fill="",title="Democratic Primary (as of 4 March 2020)")+
@@ -186,7 +187,8 @@ super_tuesday_wins<-win_counter%>%
 #create palette for chart
 pal <- colorFactor(
   palette = "viridis",
-  domain = super_tuesday_wins$winner)
+  domain = super_tuesday_wins$winner,
+  reverse=TRUE)
 leaflet()%>%
   addPolygons(data=st_as_sf(super_tuesday_wins),
               stroke=FALSE,
@@ -213,24 +215,26 @@ super_tuesday_delegates<-win_counter%>%
   #replace NAs with 0s (just in case)
   replace_na(list(Sanders=0,Biden=0))%>%
   #calculate sanders share
-  mutate(sanders_share=Sanders/(Sanders+Biden))%>%
+  mutate(biden_margin=Biden-Sanders)%>%
   #merge in state geometries
   left_join(state_geometries)
 #create palette for chart
 pal <- colorNumeric(
   palette = "viridis",
-  domain = super_tuesday_delegates$sanders_share)
+  domain = super_tuesday_delegates$biden_margin,
+  reverse = TRUE)
 leaflet()%>%
   addPolygons(data=st_as_sf(super_tuesday_delegates),
               stroke=FALSE,
               fillOpacity=1,
-              color=~pal(sanders_share))%>%
+              color=~pal(biden_margin))%>%
   addLegend(data=st_as_sf(super_tuesday_delegates),
     position="bottomright",
     pal=pal,
-    values=~sanders_share,
+    values=~biden_margin,
     opacity=1,
-    title="Sanders:Biden<br>Delegate Ratio")
+    title="Biden delegate\nmargin")
+
 ```
 
 
@@ -272,7 +276,7 @@ This doesn't contradict the high-level narrative that Biden had a great night, b
 
 ## Are these results surprising? 
 
-The big twist in the days leading up to Super Tuesday were two major candidates, Amy Klobuchar and Pete Buttigieg, both dropping out and endorsing Joe Biden. The results seemed to show that, perhaps unsurprisingly, Biden drastically outperformed the [lead-up polling](https://fivethirtyeight.com/features/what-makes-our-new-2020-democratic-primary-polling-averages-different/). 
+The big twist in the days leading up to Super Tuesday was two major candidates, Amy Klobuchar and Pete Buttigieg, both dropping out and endorsing Joe Biden. The results seemed to show that, perhaps unsurprisingly, Biden drastically outperformed the [lead-up polling](https://fivethirtyeight.com/features/what-makes-our-new-2020-democratic-primary-polling-averages-different/). 
 
 ```{r compare_polling_actual_biden,echo=FALSE,warning=FALSE,message=FALSE}
 #create a function that takes a candidate's name and returns a two-column dataframe of state and that candidate's polling average
@@ -330,6 +334,7 @@ biden_comparison<-pop_vote3%>%
 
 biden_comparison
 ```
+
 Assuming the polling wasn't systematically wrong, this was probably due to a combination of Pete and Amy supporters voting for Biden because of their endorsements, and undecided voters choosing him as the standardbearer for the moderate wing of the party. 
 
 But what about Sanders? To the extent that only one candidate can get the nomination, Joe's good night is Bernie's bad night. But in terms of his actual share of the vote, Bernie **met or outperformed his polling average (as calculated by 538) in every state.**
@@ -369,15 +374,18 @@ sanders_comparison
 ```
 
 
-That's not to say that Sanders did *well*, just that he got about as many votes as the polling would have us expect. The better question then is why did we expect him to do well?
+That's not to say that Sanders did *well*, just that he got about as many votes as the previous polling averages forecasted. The better question, then, is why did we expect him to do well?
 
 This has at least a little to do with the overemphasis on "winning" states. Sanders was projected to win many Super Tuesday states, but was never really polling all that high in any of them, just high enough to keep his head above the rest of the pack. What seemed like a favorable position depended heavily on the moderate vote being split between several candidates. When candidates dropped out and their share mostly redistributed between those who remained, that lead shrunk. 
 
-It's hard to say what the impact was of the coverage that inflated our expectations for Sanders. One the one hand, positive polling probably helped Sanders build enthusiasm and belief within his base. However, abrupt shift away from that positivity may do more harm than good.
+It's hard to say what the impact was of the coverage that inflated our expectations for Sanders. One the one hand, positive polling probably helped Sanders build enthusiasm and belief within his base. However, the abrupt shift away from that positivity may do more harm than good as he works to continue mobilizing supporters.
 
 ## What might happen next?
 
-If current polling averages are to be trusted (more on that later), Sanders' path forward doesn't look that great. Biden is polling ahead of him, both in terms of states and possible delegates, in most of the contests for which we have polling information. 
+If current polling averages are to be trusted (more on that later), Sanders' path forward doesn't look promising. Biden is polling ahead of him, both in terms of states and possible delegates, in most of the contests for which we have polling information. 
+
+The chart below compares polling averages for Biden and Sanders in upcoming contests. Note that this chart does not account for Klobuchar and Buttigieg supporters shifting to either candidate, as they overwhelmingly appear to have done for Biden on Tuesday. The actual reality, as things currently stand, is even bleaker for Sanders. 
+
 
 ```{r show_sanders_biden_polling_in_remaining,echo=FALSE,warning=FALSE,message=FALSE}
 
@@ -416,6 +424,10 @@ sanders_biden_comparison
 
 ```
 
+(Source: 538 Polling Averages. Excludes the following contests where polling was unavailable: 
+LA, KY, PR, KS, NE, WV, RI, HI, ID, DC, SD, AK, ND, DA, GU, VI, MP.)
+
+There is of course still another candidate in the race. Since Sanders looks pretty far out, lets look at one extreme scenario that some think could help him regain a footing. 
 
 ```{r sanders_and_warren_biden_comparison,echo=FALSE,warning=FALSE,message=FALSE}
 with_absorbed<-polling_by_candidate%>%
@@ -448,32 +460,29 @@ with_absorbed<-polling_by_candidate%>%
   #scale_size_continuous(guide="none")+
   #add an equality line
   geom_abline(slope=1,intercept=0)+
-  scale_x_continuous(limits=c(11,54))+
-  scale_y_continuous(limits=c(11,54))
+  scale_y_continuous(limits=c(11,54))+
+  scale_x_continuous(limits=c(11,54))
 
 with_absorbed
 ```
 
-(Source: 538 Polling Averages. Excludes the following contests where polling was unavailable: 
-LA, KY, PR, KS, NE, WV, RI, HI, ID, DC, SD, AK, ND, DA, GU, VI, MP.)
-
-Note that the first chart assumes (in addition to the polls being accurate) that none of Klobuchar and Buttigieg's supporters switch to either candidate, which is obviously not a good assumption given what we saw on Super Tuesday. The actual reality, as things currently stand, is even bleaker for Sanders. 
-
-The second chart entertains the idea of Warren dropping out and enthusiastically endorsing Sanders, so effectively that all of her supporters switch to Sanders, while all Klobuchar and Buttigieg supporters in remaining states go for Biden. This obviously won't happen in totality, but it gives us some idea of how a potential endorsement would change things. This looks slightly less bleak for Sanders. A handful of states shift above the line, but the gap does grow larger in other large states (notably Florida). 
+The chart above entertains the idea of Warren dropping out and enthusiastically endorsing Sanders so effectively that all of her supporters switch to Sanders. Similar, it shows all Klobuchar and Buttigieg supporters in remaining states realigning to support Biden. This obviously won't happen in totality, but it gives us some idea of how a potential endorsement would change things. This looks slightly less bleak for Sanders. A handful of states shift above the line, but the gap does grow larger in other large states (notably Florida). 
 
 To be clear, Warren hasn't dropped out yet and hasn't really indicated that she plans to. I won't comment on how many of her supporters are likely to support Sanders even if she does drop out and endorse him, but to have a chance, Sanders would need it to be **a lot**. 
 
-As bleak as the picture is for Sanders, it's worth noting that we should be less confident in these current estimates than we were for Super Tuesday states. Unfortunately, 538 doesn't seem to provide standard errors / margins of error / confidence intervals for their polling averages, but we can get some insight into their relative precision based on how often they've been polled.
+As bleak as the picture is for Sanders, it's worth noting that we should be less confident in these current estimates than we were for Super Tuesday states. 
 
 ## Should we take these projections seriously? 
 
-In a word, maybe? Even if we put aside the issue of potential realignment and just focus on the polling for Sanders and Biden, the answer may not be clear. 
+In a word, maybe? Even if we put aside the issue of potential realignment and just focus on the polling for Sanders and Biden, the answer isn't really clear.
 
+Unfortunately, 538 doesn't seem to provide standard errors / margins of error / confidence intervals for their polling averages, but we can get some insight into their relative precision based on how often they've been polled.
 
-Overall, the number of polls per delegate is fairly proportional for the early states and the remaining contests.
+On Super Tuesday, Sanders' actual vote share was extremely close to his polling averages in most contests. However, not every state is polled the same amount and not every poll is conducted by the same quality of pollsters. 
+
+The early states were polled about as frequently as the upcoming contests relative to their delegate counts. However, 538 rates pollsters in terms of quality, and the upcoming contests have substantially fewer polls conducted by pollsters rated "B+" or better.
 
 ```{r compare_all_polls,echo=FALSE,message=FALSE,warning=FALSE}
-
 #identify super tuesday states
 super_tuesday_states<-delegate_table2%>%
   filter(grepl("Super",Date))%>%
@@ -488,14 +497,16 @@ early_state<-c(super_tuesday_states,"Iowa","New Hampshire", "Nevada", "South Car
 
 #calculate number of polls for super tuesday vs non-super-tuesday states
 #results in dataset with "variable" and "value" cols since that's what the donut function expects
-polling_comparison<-primary_polls%>%
+all_polls<-primary_polls%>%
   #create indicator for whether or not state is early
   mutate(variable=ifelse(state%in%early_state,
                             "Super Tuesday or Earlier",
                             "Remaining States"))%>%
   group_by(variable)%>%
   summarise(value=n_distinct((poll_id)))%>%
-  ungroup()
+  ungroup()%>%
+  #create a variable indicating these are poll counts
+  mutate(x="All polls")
 
 #calculate the number of delegates remainining for after super tuesday
 delegates_remaining<-delegate_table2%>%
@@ -513,158 +524,42 @@ delegates_remaining<-delegate_table2%>%
   mutate(pledged=as.numeric(`State Pledged`))%>%
   group_by(variable)%>%
   summarise(value=sum(pledged))%>%
-  ungroup()
-
-#function to create donuts, takes df with columns "variable"
-create_donut<-function(df,chart_name){
-  #because donut charts are actually polar charts, need to create a cumulative sum variable for the value
-  df%>%mutate(ymax=cumsum(value),
-         ymin=c(0,head(ymax,n=-1)))%>%
-  #xmin and xmax determine the size of the hole
-  ggplot(aes(fill=variable,ymin=ymin,ymax=ymax,xmin=3,xmax=5))+
-  #make it a rectangular chart
-  geom_rect(inherit.aes=TRUE)+
-  #make chart polor
-  coord_polar(theta="y")+
-  #set range of x values, taken with xmin and xmax creates size of the hole
-  xlim(c(0,5))+
-  #remove background
-  theme_void() +
-  #no labels
-  xlab("")+
-  ylab("")+
-  #no grid
-  theme(panel.grid=element_blank()) +
-  #no axis title
-  theme(axis.text=element_blank()) +
-  #no tick marks
-  theme(axis.ticks=element_blank()) +
-  #center axis titles
-  theme(plot.title = element_text(hjust = 0.5))+
-  #no legend title
-  theme(legend.title=element_blank())+
-  #move legend to the bottom
-  theme(legend.position="bottom")+
-  #define the title as equal to the chart_name argument, to be passed when the function is called
-  labs(title=chart_name)+
-  geom_label(
-    aes(x=4,y=(ymax+ymin)/2,label=comma(value),color=variable),
-    label.size=0.25,
-    show.legend=FALSE
-  )+
-
-  scale_color_manual(values=c(rgb_max(250,250,250),rgb_max(250,250,250),rgb_max(250,250,250)))#+
-  #scale_fill_brewer(palette="Dark2")
-}
-
-grid.arrange(create_donut(polling_comparison,chart_name="Total Polls Conducted"),
-             create_donut(delegates_remaining,chart_name="Delegate Count"),ncol=2)
-
-```
-
-However, if we only look at polls deemed high-quality by 538 (B+ rating or better), there are far fewer of those per delegate for the remaining states than there were for the earlier contests.  
-```{r compare_good_polls,echo=FALSE,message=FALSE,warning=FALSE}
-quality_polls<-c("A+","A","A-","A/B","B+")
-
-#identify super tuesday states
-super_tuesday_states<-delegate_table2%>%
-  filter(grepl("Super",Date))%>%
-  #create state by removing primary stuff
-  mutate(state=gsub(" \\(.*?\\)","",Contest))%>%
-  mutate(state=gsub(" party-run","",state))%>%
-  mutate(state=gsub(" firehouse","",state))%>%
-  mutate(state=gsub(" [A-z]*$","",state))%>%
-  select(state)%>%unlist()
-#add on Iowa, New Hampshire, Nevada, and SC
-early_state<-c(super_tuesday_states,"Iowa","New Hampshire", "Nevada", "South Carolina")
-
-#calculate number of polls for super tuesday vs non-super-tuesday states
-#results in dataset with "variable" and "value" cols since that's what the donut function expects
-polling_comparison<-primary_polls%>%
+  ungroup()%>%
+  #create a variable indicating these are Delegates
+  mutate(x="Delegates")
+quality_grades<-c("A+","A","A-","A/B","B+")
+#quality polls 
+quality_polls<-primary_polls%>%
   #limit only to quality polls
-  filter(fte_grade%in%quality_polls)%>%
+  filter(fte_grade%in%quality_grades)%>%
   #create indicator for whether or not state is early
   mutate(variable=ifelse(state%in%early_state,
                             "Super Tuesday or Earlier",
                             "Remaining States"))%>%
   group_by(variable)%>%
   summarise(value=n_distinct((poll_id)))%>%
-  ungroup()
+  ungroup()%>%
+  #create variable indicating these are for quality polls
+  mutate(x="B+ or better polls")
 
-#calculate the number of delegates remainining for after super tuesday
-delegates_remaining<-delegate_table2%>%
-  #remove total row
-  filter(Contest!="Total")%>%
-  #create state by removing primary stuff
-  mutate(state=gsub(" \\(.*?\\)","",Contest))%>%
-  mutate(state=gsub(" party-run","",state))%>%
-  mutate(state=gsub(" firehouse","",state))%>%
-  mutate(state=gsub(" [A-z]*$","",state))%>%
-  #create variable indicating early vs later state
-  mutate(variable=c(rep("Super Tuesday or Earlier",19),
-                    rep("Remaining States",57-19)))%>%
-  #make numeric pledge variable
-  mutate(pledged=as.numeric(`State Pledged`))%>%
-  group_by(variable)%>%
-  summarise(value=sum(pledged))%>%
-  ungroup()
-
-#function to create donuts, takes df with columns "variable"
-create_donut<-function(df,chart_name){
-  #because donut charts are actually polar charts, need to create a cumulative sum variable for the value
-  df%>%mutate(ymax=cumsum(value),
-         ymin=c(0,head(ymax,n=-1)))%>%
-  #xmin and xmax determine the size of the hole
-  ggplot(aes(fill=variable,ymin=ymin,ymax=ymax,xmin=3,xmax=5))+
-  #make it a rectangular chart
-  geom_rect(inherit.aes=TRUE)+
-  #make chart polor
-  coord_polar(theta="y")+
-  #set range of x values, taken with xmin and xmax creates size of the hole
-  xlim(c(0,5))+
-  #remove background
-  theme_void() +
-  #no labels
-  xlab("")+
-  ylab("")+
-  #no grid
-  theme(panel.grid=element_blank()) +
-  #no axis title
-  theme(axis.text=element_blank()) +
-  #no tick marks
-  theme(axis.ticks=element_blank()) +
-  #center axis titles
-  theme(plot.title = element_text(hjust = 0.5))+
-  #no legend title
-  theme(legend.title=element_blank())+
-  #move legend to the bottom
-  theme(legend.position="bottom")+
-  #define the title as equal to the chart_name argument, to be passed when the function is called
-  labs(title=chart_name)+
-  geom_label(
-    aes(x=4,y=(ymax+ymin)/2,label=comma(value),color=variable),
-    label.size=0.25,
-    show.legend=FALSE
-  )+
-
-  scale_color_manual(values=c(rgb_max(250,250,250),rgb_max(250,250,250),rgb_max(250,250,250)))+
-  scale_fill_brewer(palette="Dark2")
-}
-
-grid.arrange(create_donut(polling_comparison,chart_name="Number B+ or better Polls Conducted"),
-             create_donut(delegates_remaining,chart_name="Delegate Count"),ncol=2)
+rbind(all_polls,quality_polls,delegates_remaining)%>%
+  #add a cumulative sum for labeling
+  mutate(label_position = cumsum(value) - 0.5 * value) %>%
+  ggplot(aes(x=x))+
+  geom_bar(aes(y=value,fill=variable,label=comma(value)),
+           stat="identity",position="fill",width=.4)+
+  scale_fill_brewer(palette="Paired")+
+  stat_identity(geom="text",
+             aes(label=comma(value),
+                 y=value,
+                 group=variable),#group=variable),
+             position=position_fill(vjust=0.5),
+             color="white")+
+  scale_y_continuous(label=percent)+
+  labs(fill="",y="percentage",x="",
+       title="Comparison of polls and delegates in finished vs upcoming contests")+
+  theme_minimal()
 
 ```
 
-
-It's therefore reasonable to say that Biden's favorable polling may not be very precise. Even if the polls did perfectly tell us how the population planned to vote at the time of polling, a lot can change in a short amount of time. Politics is full of surprises, and progressives can cling to that glimmer of hope.  
-
-```{r test,include=FALSE}
-dat<-data.frame(outcomes=rnorm(10000,mean=.5,sd=.03))
-  
-dat%>%ggplot()+
-  geom_density(aes(x=outcomes),fill=1,alpha=.5)+
-  geom_vline(aes(xintercept=.56))+
-  geom_text(data=data.frame(x=.56,y=5), aes(x, y), label="actual vote share")+labs(x="projected vote share")
-
-```
+While almost two-thirds of all pledged delegates are still up for grabs, fewer than half of all polls conducted by quality pollsters were conducted on remaining states. This may cast some doubt on the poll averages of future contests, which seem to show the race is Biden's to lose, but its difficult to quantify the extent.
