@@ -1,0 +1,232 @@
+---
+title: "Visualize Super Tuesday"
+author: "Devraj Kori"
+date: "3/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(tidycensus)
+library(rvest)    
+library(gridExtra)
+```
+
+```{r read_538_data,include=FALSE}
+#read in primary poll averages
+primary_averages<-read_csv("538_polls/pres_primary_avgs_2020.csv")
+
+
+```
+
+
+```{r retrieve_wiki_table,include=FALSE}
+#grab delegate counts from each state
+wiki_url<-"https://en.wikipedia.org/w/index.php?title=2020_Democratic_Party_presidential_primaries&diff=943986491&oldid=943986233"
+
+delegate_table<-wiki_url%>%
+  read_html()%>%
+  html_nodes(css='#mw-content-text > div.mw-parser-output > table:nth-child(128)')%>%
+  html_table(fill=TRUE)
+delegate_table2<-delegate_table[[1]]
+
+#change names of delegate_table2
+names(delegate_table2)<-c("Date","Day Delegates", "State Pledged", "Contest",
+                          "Biden", "Bloomberg", "Buttigieg", "Gabbard", "Klobuchar",
+                          "Sanders", "Warren")
+#calculate pledged delegates per state
+pledged_per_state<-delegate_table2%>%
+  select(`State Pledged`, `Contest`)%>%
+  #create state by removing primary stuff
+  mutate(state=gsub(" \\(.*?\\)","",Contest))%>%
+  mutate(state=gsub(" party-run","",state))%>%
+  mutate(state=gsub(" firehouse","",state))%>%
+  mutate(state=gsub(" [A-z]*$","",state))
+
+
+
+```
+## What actually happened on Super Tuesday? 
+
+I've noticed that the press coverage of Super Tuesday of the 2020 Democratic primary seemed to focus almost exclusively on who "won" specific states. This is a familiar format of election coverage for most of us as its how we generally hear national results for general elections. 
+
+In the general election for president, almost every state is winner-take-all, meaning whoever receives a plurality of the vote in that state claims all of the electors from that state. Unlike the general, in the Democratic primary, almost every state divides up its "delegates" sort of proportionally among all of the candidates who hit a certain threshold.
+
+That means that presenting election results in terms of state wins can be misleading for a couple reasons: 
+1. It treats states where a single candidate gets all of the delegates, and states where delegates are equally split between two or more candidates exactly the same. 
+2. Because most of us don't know the relative populations of all 50 states off the top of our heads, it makes it hard to compare candidate A's strongest performing states with Candidate B's. 
+
+```{r compare_wins_to_delegates,echo=FALSE}
+
+
+```
+
+The chart on the right gives a much more accurate presentation of how much super tuesday helped each candidate get closer to the nomination, while the chart on the depicts the stat that's underlying most election coverage. 
+
+Regardless of your preferred site for election coverage, you probably saw a map that looked something like this. 
+
+```{r state_winners, echo=FALSE}
+
+
+```
+
+When really, something like this better shows the intensity of victories in each state. 
+```{r state_delegate, echo=FALSE}
+
+```
+
+Of course, land doesn't vote. Here's the vote after resizing to reflect the relative number of delegates at stake in each state: 
+
+```{r state_delegates resized, echo=FALSE}
+
+
+```
+
+
+None of this undermines the high-level narrative that Biden had a great night, but it paints a much more accurate picture of exactly how that great night went down.
+
+
+## Are these results surprising? 
+
+The big twist in the days leading up to Super Tuesday were two major candidates, Amy Klobuchar and Pete Buttigieg, both dropping out and endorsing Joe Biden. The results seemed to show that, perhaps unsurprisingly, Biden drastically outperformed the [lead-up polling](https://fivethirtyeight.com/features/what-makes-our-new-2020-democratic-primary-polling-averages-different/). Assuming the polling wasn't systematically wrong, this was probably due to a combination of Pete and Amy supporters voting for Biden because of their endorsements, and undecided voters choosing him as the standardbearer for the moderate wing of the party. 
+
+But what about Sanders? To the extent that only one candidate can get the nomination, Joe's good night is Bernie's bad night. But in terms of his actual share of the vote, Bernie **met or outperformed his polling average (as calculated by 538) in almost every state.**
+
+```{r compare_polling_actual}
+
+
+```
+
+
+That's not to say that Sanders did *well*, just that he got about as many votes as the polling would have us expect. The better question then is why did we expect him to do well?
+
+This has at least a little to do with this same issue of "winning" states. Sanders was projected to win many Super Tuesday states, but was never really polling all that high in any of them, just high enough to keep his head above the rest of the pack. When candidates dropped out and their share mostly redistributed between those who remained, that lead shrunk. 
+
+## What might happen next.
+
+If current polling averages are to be trusted, Sanders' path forward doesn't look that great. Biden is polling ahead of him, both in terms of states and possible delegates, in most of the contests for which there's information. 
+
+```{r show_sanders_biden_polling_in_remaining,echo=FALSE,warning=FALSE}
+#create a function that takes a candidate's name and returns a two-column dataframe of state and that candidate's polling average
+candidate_polling<-function(name){
+  #start with primary averages
+  temp_frame<-primary_averages%>%
+    #limit to candidate
+    filter(grepl(name,candidate_name))%>%
+    #limit to just latest occurence of state
+    slice(match(unique(primary_averages$state),state))%>%
+    select(state,pct_estimate)
+  #rename column for candidate
+  names(temp_frame)[2]<-name
+  #return temp_frame
+  temp_frame
+}
+#create list of candidates to apply function over
+candidates<-c("Sanders","Biden","Buttigieg","Klobuchar", "Warren")
+
+#apply the function over all candidates, and join together
+polling_by_candidate<-Reduce(full_join,
+                              lapply(candidates,
+                                     candidate_polling))%>%
+  #replace klobuchar NA's with 0s
+  replace_na(list(Klobuchar=0))
+
+sanders_biden_comparison<-polling_by_candidate%>%
+  #join in pledged
+  inner_join(pledged_per_state%>%
+               #limit to just after super tuesday
+               slice(20:nrow(pledged_per_state)))%>%
+  #make pledged per state numeric
+  mutate(`State Pledged`=as.numeric(`State Pledged`))%>%
+  #limit only to states where Biden's polling at at least .1% (excludes wyoming)
+  filter(Biden>=.1)%>%
+  #create a column for Sanders/Biden ratio
+  mutate(`Sanders/Biden Ratio`=Sanders/Biden)%>%
+  #plot
+  ggplot(aes(x=Biden,y=Sanders,color=`Sanders/Biden Ratio`,label=state))+
+  geom_point(aes(size=`State Pledged`))+
+  geom_text()+
+  scale_color_viridis_c(limits=c(0,2.5))+
+  labs(title="Sanders vs Biden projections in remaining contests\n(projections before Pete and Amy dropped)",
+       y="Sanders projected share",
+       x="Biden projected share",
+       color="Sanders:Biden\nratio",
+       size="Pledged\ndelegates")+
+  #scale_size_continuous(guide="none")+
+  #add an equality line
+  geom_abline(slope=1,intercept=0)+
+  scale_x_continuous(limits=c(11,54))+
+  scale_y_continuous(limits=c(11,54))
+
+sanders_biden_comparison
+
+
+```
+
+
+```{r sanders_and_warren_biden_comparison,echo=FALSE,warning=FALSE,message=FALSE}
+with_absorbed<-polling_by_candidate%>%
+  #join in pledged
+  inner_join(pledged_per_state%>%
+               #limit to just after super tuesday
+               slice(20:nrow(pledged_per_state)))%>%
+  #make pledged per state numeric
+  mutate(`State Pledged`=as.numeric(`State Pledged`))%>%
+  #limit only to states where Biden's polling at at least .1% (excludes wyoming)
+  filter(Biden>=.1)%>%
+  #create a column for sanders warren combined
+  mutate(sanders_plus_warren=Sanders+Warren)%>%
+  #create a column for Biden, Amy, Pete combined
+  mutate(biden_plus=Biden+Klobuchar+Buttigieg)%>%
+  #create a column for Sanders/Biden ratio
+  mutate(`Sanders/Biden Ratio`=sanders_plus_warren/biden_plus)%>%
+  #plot
+  ggplot(aes(x=biden_plus,y=sanders_plus_warren,color=`Sanders/Biden Ratio`,label=state))+
+  geom_point(aes(size=`State Pledged`))+
+  geom_text()+
+  scale_color_viridis_c(limits=c(0,2.5))+
+  labs(title="Sanders vs Biden projections with perfect realignment\n(assuming Sanders absorbs Warren, Biden absorbs Amy/Pete)",
+       y="Sanders + Warren combined projected share",
+       x="Biden + Amy + Pete combined projected share",
+       color="Sanders+:Biden+\nRatio\n",
+       size="Pledged\ndelegates")+
+  #scale_size_continuous(guide="none")+
+  #add an equality line
+  geom_abline(slope=1,intercept=0)+
+  scale_x_continuous(limits=c(11,54))+
+  scale_y_continuous(limits=c(11,54))
+
+with_absorbed
+```
+
+(Source: 538 Polling Averages. Excludes the following contests where polling was unavailable: 
+LA, KY, PR, KS, NE, WV, RI, HI, ID, DC, SD, AK, ND, DA, GU, VI, MP.)
+
+Note that the first chart assumes (in addition to the polls being accurate) that none Amy and Pete's supporters switch to either candidate, which is obviously not a good assumption given what we saw on Super Tuesday. The actual reality, as things currently stand, is even bleaker for Sanders. 
+
+The second chart entertains the idea of Warren dropping out and enthusiastically endorsing Sanders, so effectively that all of her supporters switch to Sanders, while all Klobuchar and Buttigieg supporters in remaining states go for Biden. Clearly these are crude projections but still give some insight into how things could shift. Several states with sizable delegate counts shift above the line when adding in the other candidate voting shares. 
+
+To be clear, Warren hasn't dropped out yet and hasn't really indicated that she plans to. I won't comment on whether the strategy of staying in and hoping for a brokered convention where no one has a majority of delegates would be a good one. 
+
+As bleak as the picture is for Sanders, it's worth noting that we should be a lot less confident in these current estimates than we were for Super Tuesday states. Unfortunately, 538 doesn't seem to provide standard errors / margins of error / confidence intervals for their polling averages, but we can get some insight into their relative precision based on how often they've been polled.
+
+```{r compare_polling_frequency,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+
+```
+
+
+
+```{r test,include=FALSE}
+dat<-data.frame(outcomes=rnorm(10000,mean=.5,sd=.03))
+  
+dat%>%ggplot()+
+  geom_density(aes(x=outcomes),fill=1,alpha=.5)+
+  geom_vline(aes(xintercept=.56))+
+  geom_text(data=data.frame(x=.56,y=5), aes(x, y), label="actual vote share")+labs(x="projected vote share")
+
+```
