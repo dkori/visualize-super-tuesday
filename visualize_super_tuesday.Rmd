@@ -2,10 +2,12 @@
 title: "Visualizing Super Tuesday and Beyond"
 author: "Devraj Kori"
 date: "3/4/2020"
-output: html_document
+output: distill::distill_article
+repository_url: https://github.com/dkori/visualize-super-tuesday
 ---
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -16,6 +18,11 @@ library(gridExtra)
 library(scales)
 library(leaflet)
 library(sf)
+#install.packages("distill")
+#create HTML header
+# fileConn <- file("myheader.html")
+# writeLines('<meta property="og:image" content="http://devrajkori.com/wp-content/uploads/2020/03/sanders-projected-actual.png" />', fileConn)
+# close(fileConn)
 ```
 
 ```{r other_functions,include=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
@@ -106,7 +113,6 @@ pledged_per_state<-delegate_table2%>%
 
 
 ```
-[github repo](https://github.com/dkori/visualize-super-tuesday)
 
 ## What actually happened on Super Tuesday? 
 
@@ -339,7 +345,7 @@ Assuming the polling wasn't systematically wrong, this was probably due to a com
 
 But what about Sanders? To the extent that only one candidate can get the nomination, Joe's good night is Bernie's bad night. But in terms of his actual share of the vote, Bernie **met or outperformed his polling average (as calculated by 538) in every state.**
 
-```{r compare_polling_actual_sanders,echo=FALSE,warning=FALSE,message=FALSE}
+```{r compare_polling_actual_sanders,echo=FALSE,warning=FALSE,message=FALSE,preview=TRUE}
 #compare Sanders's actual popular vote to his polling averages by state
 sanders_comparison<-pop_vote3%>%
   select(state,Sanders,delegate_count)%>%
