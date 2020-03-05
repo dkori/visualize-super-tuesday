@@ -187,8 +187,7 @@ super_tuesday_wins<-win_counter%>%
 #create palette for chart
 pal <- colorFactor(
   palette = "viridis",
-  domain = super_tuesday_wins$winner,
-  reverse=TRUE)
+  domain = super_tuesday_wins$winner)
 leaflet()%>%
   addPolygons(data=st_as_sf(super_tuesday_wins),
               stroke=FALSE,
@@ -204,7 +203,7 @@ leaflet()%>%
 
 ```
 
-When really, something like this better shows the intensity of victories in each state. 
+When really, something like this better shows the impact of victories in each state. 
 ```{r state_delegate, echo=FALSE,warning=FALSE,message=FALSE}
 super_tuesday_delegates<-win_counter%>%
   filter(grepl("Tuesday",Date))%>%
